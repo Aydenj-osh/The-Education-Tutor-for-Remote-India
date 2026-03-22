@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>EduTutor India — AI Learning for Rural Students</title>
+  <meta name="description"
+    content="AI-powered tutoring for rural Indian students. Upload any PDF and ask questions — powered by Scaledown AI context compression. Works offline." />
+  <meta name="theme-color" content="#4f8ef7" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="EduTutor" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json" />
+
+  <!-- Google Fonts — preload for speed -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet" />
+
+  <!-- PDF.js (ESM, from CDN) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "pdfjs": "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs"
+      }
+    }
+  </script>
+
+  <style>
+    /* ── Design Tokens ─────────────────────────────────────── */
+    :root {
+      /* LIGHT MODE */
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --panel: #ffffff;
+      --border: rgba(0, 0, 0, 0.06);
+      --accent: #4f8ef7;
+      --accent2: #10b981;
+      --accent3: #eab308;
+      --txt: #0f172a;
+      --txt-muted: #64748b;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --trans: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+      /* Glass variables */
+      --glass-bg: rgba(255, 255, 255, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.95);
+      --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+      --input-bg: rgba(255, 255, 255, 0.85);
+
+      /* Orbs */
+      --orb-1: rgba(79, 142, 247, 0.15);
+      --orb-2: rgba(124, 58, 237, 0.08);
+      --orb-3: rgba(52, 211, 153, 0.12);
+    }
+
+    [data-theme="dark"] {
+      /* DARK MODE (Premium Obsidian Black/Zinc) */
+      --bg: #09090b;
+      --surface: #18181b;
+      --panel: #27272a;
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #818cf8;
+      --accent2: #34d399;
+      --accent3: #fbbf24;
+      --txt: #f4f4f5;
+      --txt-muted: #a1a1aa;
+
+      /* Glass variables */
+      --glass-bg: rgba(24, 24, 27, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      --input-bg: rgba(0, 0, 0, 0.35);
+
+      /* Orbs - Soft glowing aurora */
+      --orb-1: rgba(99, 102, 241, 0.14);
+      --orb-2: rgba(168, 85, 247, 0.14);
+      --orb-3: rgba(45, 212, 191, 0.10);
+    }
+
+    /* ── Reset ─────────────────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(circle at 10% 20%, var(--orb-1), transparent 45%),
+        radial-gradient(circle at 90% 80%, var(--orb-2), transparent 45%),
+        radial-gradient(circle at 75% 15%, var(--orb-3), transparent 40%);
+      transition: background-color var(--trans);
+      pointer-events: none;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      transition: background var(--trans), border-color var(--trans);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+    }
+
+    .logo-text {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .logo-text span {
+      color: var(--accent);
+    }
+
+    /* Header right */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+    }
+
+    .btn-icon {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--txt-muted);
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all var(--trans);
+    }
+
+    .btn-icon:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .badge-pill {
+      font-size: .63rem;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      padding: .2rem .55rem;
+      border-radius: 6px;
+      display: none;
+    }
+
+    .badge-pill.mock {
+      background: rgba(245, 158, 11, .18);
+      color: var(--accent3);
+      border: 1px solid rgba(245, 158, 11, .3);
+    }
+
+    .badge-pill.offline {
+      background: rgba(248, 113, 113, .18);
+      color: #f87171;
+      border: 1px solid rgba(248, 113, 113, .3);
+    }
+
+    .badge-pill.visible {
+      display: inline-block;
+    }
+
+    /* Install button */
+    .btn-install {
+      font-size: .75rem;
+      font-weight: 600;
+      padding: .32rem .75rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--accent);
+      background: rgba(79, 142, 247, .12);
+      color: var(--accent);
+      cursor: pointer;
+      transition: background var(--trans);
+      display: none;
+    }
+
+    .btn-install:hover {
+      background: rgba(79, 142, 247, .22);
+    }
+
+    /* Toggle */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .76rem;
+      color: var(--txt-muted);
+    }
+
+    .toggle {
+      width: 38px;
+      height: 22px;
+      border-radius: 11px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      position: relative;
+      transition: background var(--trans);
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--txt-muted);
+      transition: transform var(--trans), background var(--trans);
+    }
+
+    .toggle.on {
+      background: rgba(52, 211, 153, .2);
+      border-color: var(--accent2);
+    }
+
+    .toggle.on::after {
+      transform: translateX(16px);
+      background: var(--accent2);
+    }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    main {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    /* ── Card (Glassmorphism) ────────────────────────────────── */
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border);
+      border-top: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 1.4rem;
+      margin-bottom: 1.4rem;
+      box-shadow: var(--glass-shadow);
+      transition: background var(--trans), box-shadow var(--trans), border-color var(--trans);
+    }
+
+    .card-title {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--txt-muted);
+      margin-bottom: .85rem;
+    }
+
+    /* ── API Key Inputs ──────────────────────────────────────── */
+    .api-card {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .api-input-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+
+    .api-input-group label {
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--txt-muted);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+
+    .api-input-group input {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .85rem 1.1rem;
+      color: var(--txt);
+      font-family: monospace;
+      font-size: .85rem;
+      letter-spacing: .05em;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .api-input-group input:focus {
+      border-color: var(--accent);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(79, 142, 247, 0.15), inset 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .api-input-group input::placeholder {
+      color: rgba(255, 255, 255, 0.2);
+      font-family: 'Inter', sans-serif;
+      letter-spacing: normal;
+    }
+
+    /* ── Upload ──────────────────────────────────────────────── */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1.6rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--trans), background var(--trans);
+      position: relative;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag {
+      border-color: var(--accent);
+      background: rgba(79, 142, 247, .05);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      font-size: 2rem;
+      margin-bottom: .4rem;
+    }
+
+    .upload-text {
+      font-size: .84rem;
+      color: var(--txt-muted);
+    }
+
+    .upload-text strong {
+      color: var(--txt);
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: .7rem;
+      font-size: .77rem;
+      color: var(--txt-muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--txt-muted);
+      flex-shrink: 0;
+    }
+
+    .dot.green {
+      background: var(--accent2);
+      box-shadow: 0 0 6px var(--accent2);
+    }
+
+    .dot.pulse {
+      animation: pulse 1.4s infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* ── Chat ────────────────────────────────────────────────── */
+    .chat-box {
+      min-height: 180px;
+      max-height: 320px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: .7rem;
+      padding: .2rem 0;
+      margin-bottom: .85rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .msg {
+      max-width: 84%;
+      padding: .65rem 1rem;
+      border-radius: 12px;
+      font-size: .83rem;
+      line-height: 1.55;
+      animation: fadeUp .22s ease;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(7px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.bot {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--txt);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg.sys {
+      align-self: center;
+      font-size: .73rem;
+      color: var(--txt-muted);
+      background: none;
+      padding: .2rem;
+    }
+
+    .typing-dots span {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--txt-muted);
+      margin: 0 2px;
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing-dots span:nth-child(2) {
+      animation-delay: .2s
+    }
+
+    .typing-dots span:nth-child(3) {
+      animation-delay: .4s
+    }
+
+    @keyframes bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0)
+      }
+
+      40% {
+        transform: translateY(-6px)
+      }
+    }
+
+    /* ── Input Row ───────────────────────────────────────────── */
+    .input-row {
+      display: flex;
+      gap: .6rem;
+    }
+
+    .input-row input {
+      flex: 1;
+      padding: .65rem .9rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--txt);
+      font-size: .84rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color var(--trans);
+    }
+
+    .input-row input:focus {
+      border-color: var(--accent);
+    }
+
+    .input-row input::placeholder {
+      color: var(--txt-muted);
+    }
+
+    .btn {
+      padding: .65rem 1.1rem;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      font-size: .82rem;
+      font-weight: 600;
+      transition: opacity var(--trans), transform var(--trans);
+    }
+
+    .btn:active {
+      transform: scale(.97)
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      opacity: .88
+    }
+
+    /* ── Dashboard ───────────────────────────────────────────── */
+    .dashboard {
+      display: none;
+    }
+
+    .dashboard.visible {
+      display: block;
+    }
+
+    .dash-header {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-bottom: .85rem;
+    }
+
+    .dash-header h3 {
+      font-size: .93rem;
+      font-weight: 700;
+    }
+
+    .dash-header .sub {
+      font-size: .7rem;
+      color: var(--txt-muted);
+      margin-left: auto;
+    }
+
+    /* Compression hero */
+    .compression-hero {
+      background: linear-gradient(135deg, rgba(79, 142, 247, .12), rgba(99, 102, 241, .09));
+      border: 1px solid rgba(79, 142, 247, .2);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.1rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .ratio-number {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .ratio-label {
+      font-size: .76rem;
+      color: var(--txt-muted);
+      margin-top: .18rem;
+    }
+
+    .ratio-detail {
+      font-size: .79rem;
+      color: var(--txt);
+      margin-top: .4rem;
+      font-weight: 500;
+    }
+
+    /* Progress */
+    .progress-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--surface);
+      overflow: hidden;
+      margin: .5rem 0 1rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .6s cubic-bezier(.16, 1, .3, 1);
+    }
+
+    /* Metric grid */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: .72rem;
+    }
+
+    .metric {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .75rem .85rem;
+      transition: border-color var(--trans), background var(--trans);
+    }
+
+    .metric:hover {
+      border-color: var(--accent);
+    }
+
+    .m-label {
+      font-size: .67rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--txt-muted);
+      margin-bottom: .3rem;
+    }
+
+    .m-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .m-sub {
+      font-size: .69rem;
+      color: var(--txt-muted);
+      margin-top: .18rem;
+    }
+
+    .m-value.green {
+      color: var(--accent2);
+    }
+
+    .m-value.blue {
+      color: var(--accent);
+    }
+
+    .m-value.amber {
+      color: var(--accent3);
+    }
+
+    /* Latency */
+    .latency-row {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin: .38rem 0;
+      font-size: .77rem;
+    }
+
+    .latency-row .l-label {
+      width: 110px;
+      flex-shrink: 0;
+      color: var(--txt-muted);
+    }
+
+    .latency-row .l-bar {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .latency-row .l-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+      transition: width .5s ease;
+    }
+
+    .latency-row .l-val {
+      width: 52px;
+      text-align: right;
+      color: var(--txt);
+    }
+
+    /* Offline alert */
+    .alert-offline {
+      background: rgba(248, 113, 113, .1);
+      border: 1px solid rgba(248, 113, 113, .25);
+      border-radius: var(--radius-sm);
+      padding: .6rem .85rem;
+      font-size: .78rem;
+      color: #f87171;
+      margin-bottom: .85rem;
+      display: none;
+    }
+
+    .alert-offline.show {
+      display: block;
+    }
+
+    /* ── Install Toast ───────────────────────────────────────── */
+    .install-toast {
+      position: fixed;
+      bottom: 1.2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .8rem 1.2rem;
+      font-size: .82rem;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      box-shadow: var(--shadow);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .install-toast.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .install-toast button {
+      padding: .3rem .7rem;
+      font-size: .76rem;
+      font-weight: 600;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: .71rem;
+      color: var(--txt-muted);
+      padding: 1.4rem 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width:600px) {
+      .api-card {
+        flex-direction: column;
+        gap: 1rem;
+      }
+    }
+
+    @media (max-width:480px) {
+      .metric-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .msg {
+        max-width: 96%;
+      }
+
+      .ratio-number {
+        font-size: 2rem;
+      }
+
+      header {
+        padding: .8rem 1rem;
+      }
+
+      .header-right {
+        gap: .5rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Theme Script (prevent flash) ───────────────────────── -->
+  <script>
+    const savedTheme = localStorage.getItem('edututor_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
+
+  <!-- ── Header ───────────────────────────────────────────────── -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📚</div>
+      <div class="logo-text">Edu<span>Tutor</span> India</div>
+      <span id="mockBadge" class="badge-pill mock">Mock</span>
+      <span id="offlineBadge" class="badge-pill offline">Offline</span>
+    </div>
+    <div class="header-right">
+      <button id="themeToggle" class="btn-icon" aria-label="Toggle dark/light mode">🌓</button>
+      <button id="btnInstall" class="btn-install" aria-label="Install app">⬇ Install</button>
+    </div>
+  </header>
+
+  <!-- ── Main ─────────────────────────────────────────────────── -->
+  <main>
+
+    <!-- API Keys -->
+    <section class="card api-card" aria-label="API Keys">
+      <div class="api-input-group">
+        <label for="apiKeyInput"><span>🔑</span> Scaledown API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="Required for context pruning" autocomplete="off" />
+      </div>
+      <div class="api-input-group">
+        <label for="geminiKeyInput"><span>✨</span> Gemini API Key</label>
+        <input type="password" id="geminiKeyInput" placeholder="Required for AI answers" autocomplete="off" />
+      </div>
+    </section>
+
+    <!-- Offline Alert -->
+    <div class="alert-offline" id="alertOffline" role="alert">
+      ⚠ You're offline. Scaledown API will use cached/mock compression. Your questions still work.
+    </div>
+
+    <!-- Step 1 — Upload -->
+    <section class="card" aria-label="Upload PDF">
+      <div class="card-title">Step 1 — Upload your textbook PDF</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="pdfFile" accept=".pdf" aria-label="Choose PDF file" />
+        <div class="upload-icon">📄</div>
+        <div class="upload-text"><strong>Tap to choose</strong> or drag &amp; drop a PDF</div>
+      </div>
+      <div class="status-bar">
+        <div class="dot" id="statusDot"></div>
+        <span id="statusText">No PDF loaded</span>
+      </div>
+    </section>
+
+    <!-- Step 2 — Ask -->
+    <section class="card" aria-label="Ask a question">
+      <div class="card-title">Step 2 — Ask your question</div>
+      <div class="chat-box" id="chatBox" role="log" aria-live="polite">
+        <div class="msg sys">Upload a PDF above, then ask any question about it.</div>
+      </div>
+      <div class="input-row">
+        <input type="text" id="questionInput" placeholder="e.g. What is photosynthesis?" aria-label="Your question" />
+        <button class="btn btn-primary" id="askBtn" onclick="askQuestion()" disabled>Ask</button>
+      </div>
+    </section>
+
+    <!-- Transparency Dashboard -->
+    <section class="card dashboard" id="dashboard" aria-label="Transparency Dashboard">
+      <div class="dash-header">
+        <span style="font-size:1.1rem">📊</span>
+        <h3>Transparency Dashboard</h3>
+        <span class="sub" id="dashSub"></span>
+      </div>
+
+      <div class="compression-hero">
+        <div class="ratio-number" id="ratioNum">—</div>
+        <div class="ratio-label">Context Compression by Scaledown AI</div>
+        <div class="ratio-detail" id="ratioDetail">—</div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="m-label">Original Tokens</div>
+          <div class="m-value blue" id="mOrig">—</div>
+          <div class="m-sub">raw retrieved context</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Compressed Tokens</div>
+          <div class="m-value green" id="mComp">—</div>
+          <div class="m-sub">after Scaledown AI</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Tokens Saved</div>
+          <div class="m-value green" id="mSaved">—</div>
+          <div class="m-sub">vs standard RAG</div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Est. Cost Reduction</div>
+          <div class="m-value amber" id="mCost">—</div>
+          <div class="m-sub">proportional to tokens</div>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem">
+        <div class="card-title">Latency Breakdown</div>
+        <div class="latency-row">
+          <span class="l-label">↗ Extraction</span>
+          <div class="l-bar">
+            <div class="l-fill" id="lExtract" style="width:0%"></div>
+          </div>
+          <span class="l-val" id="lvExtract">—</span>
+        </div>
+        <div class="latency-row">
+          <span class="l-label">⚡ Scaledown</span>
+          <div class="l-bar">
+            <div class="l-fill" id="lScale" style="width:0%;background:var(--accent2)"></div>
+          </div>
+          <span class="l-val" id="lvScale">—</span>
+        </div>
+        <div class="latency-row">
+          <span class="l-label">🤖 LLM</span>
+          <div class="l-bar">
+            <div class="l-fill" id="lLlm" style="width:0%;background:var(--accent3)"></div>
+          </div>
+          <span class="l-val" id="lvLlm">—</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Install Toast -->
+  <div class="install-toast" id="installToast">
+    📲 Install EduTutor for offline use
+    <button id="toastInstallBtn">Install</button>
+    <button onclick="dismissToast()"
+      style="background:var(--surface);color:var(--txt-muted);border:1px solid var(--border);">✕</button>
+  </div>
+
+  <footer>
+    Built for <strong>Scaledown Contest</strong> — EduTutor India &nbsp;|&nbsp;
+    Context compressed by <a href="https://scaledown.xyz" target="_blank" rel="noopener">Scaledown AI</a>
+    &nbsp;|&nbsp; PWA · Works Offline
+  </footer>
+
+  <!-- ── Application Logic ─────────────────────────────────────── -->
+  <script type="module">
+    /* ────────────────────────────────────────────────
+     * CONFIGURATION
+     * ──────────────────────────────────────────────── */
+    const SCALEDOWN_URL = 'https://api.scaledown.xyz/compress/raw/';
+    const TOP_K_CHUNKS = 5;   // Number of chunks to retrieve
+    const CHUNK_SIZE = 80;  // Words per chunk
+
+    /* ────────────────────────────────────────────────
+     * STATE
+     * ──────────────────────────────────────────────── */
+    let pdfChunks = [];
+    let pdfTitle = '';
+    let deferredInstallPrompt = null;
+
+    // Attach to window so inline onclick handlers can reach async functions
+    window.askQuestion = askQuestion;
+    window.dismissToast = dismissToast;
+
+    /* ────────────────────────────────────────────────
+     * THEME TOGGLE
+     * ──────────────────────────────────────────────── */
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('edututor_theme', newTheme);
+      themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    });
+    // Initialize icon icon
+    themeToggle.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
+
+    /* ────────────────────────────────────────────────
+     * SERVICE WORKER REGISTRATION
+     * ──────────────────────────────────────────────── */
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./service-worker.js')
+        .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+        .catch(err => console.warn('[SW] Registration failed:', err));
+    }
+
+    /* ────────────────────────────────────────────────
+     * ONLINE / OFFLINE DETECTION
+     * ──────────────────────────────────────────────── */
+    function updateOnlineStatus() {
+      const offline = !navigator.onLine;
+      document.getElementById('offlineBadge').classList.toggle('visible', offline);
+      document.getElementById('alertOffline').classList.toggle('show', offline);
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    /* ────────────────────────────────────────────────
+     * PWA INSTALL PROMPT
+     * ──────────────────────────────────────────────── */
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      document.getElementById('btnInstall').style.display = 'inline-block';
+      document.getElementById('installToast').classList.add('show');
+      setTimeout(() => document.getElementById('installToast').classList.remove('show'), 8000);
+    });
+
+    document.getElementById('btnInstall').addEventListener('click', triggerInstall);
+    document.getElementById('toastInstallBtn').addEventListener('click', triggerInstall);
+
+    async function triggerInstall() {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      console.log('[PWA] Install outcome:', outcome);
+      deferredInstallPrompt = null;
+      document.getElementById('btnInstall').style.display = 'none';
+      dismissToast();
+    }
+
+    function dismissToast() {
+      document.getElementById('installToast').classList.remove('show');
+    }
+
+    /* ────────────────────────────────────────────────
+     * API KEYS (Scaledown & Gemini)
+     * ──────────────────────────────────────────────── */
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const geminiKeyInput = document.getElementById('geminiKeyInput');
+
+    // Load saved keys
+    const savedScaleKey = localStorage.getItem('edututor_api_key');
+    const savedGeminiKey = localStorage.getItem('edututor_gemini_key');
+
+    if (savedScaleKey) apiKeyInput.value = savedScaleKey;
+    if (savedGeminiKey) geminiKeyInput.value = savedGeminiKey;
+
+    // Save on change
+    apiKeyInput.addEventListener('input', () => {
+      localStorage.setItem('edututor_api_key', apiKeyInput.value.trim());
+    });
+    geminiKeyInput.addEventListener('input', () => {
+      localStorage.setItem('edututor_gemini_key', geminiKeyInput.value.trim());
+    });
+
+    /* ────────────────────────────────────────────────
+     * PDF UPLOAD — drag, drop, file picker
+     * ──────────────────────────────────────────────── */
+    const uploadZone = document.getElementById('uploadZone');
+    const pdfInput = document.getElementById('pdfFile');
+
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault(); uploadZone.classList.remove('drag');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+    pdfInput.addEventListener('change', () => { if (pdfInput.files[0]) handleFile(pdfInput.files[0]); });
+
+    /**
+     * Extract text from a PDF file using PDF.js entirely in the browser.
+     */
+    async function extractTextFromPDF(file) {
+      const { getDocument, GlobalWorkerOptions } = await import('pdfjs');
+      // Point worker to CDN (same version)
+      GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs';
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        fullText += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return fullText;
+    }
+
+    /**
+     * Split text into overlapping word-based chunks.
+     */
+    function chunkText(text, chunkSize = CHUNK_SIZE) {
+      const words = text.trim().split(/\s+/).filter(Boolean);
+      const chunks = [];
+      for (let i = 0; i < words.length; i += chunkSize) {
+        const chunk = words.slice(i, i + chunkSize + 10).join(' '); // slight overlap
+        if (chunk.trim()) chunks.push(chunk.trim());
+      }
+      return chunks;
+    }
+
+    async function handleFile(file) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setStatus('dot', '❌ Only PDF files are supported.'); return;
+      }
+      setStatus('dot pulse', `Extracting text from "${file.name}"…`);
+      const t0 = performance.now();
+      try {
+        const text = await extractTextFromPDF(file);
+        const taken = Math.round(performance.now() - t0);
+        pdfChunks = chunkText(text);
+        pdfTitle = file.name;
+
+        if (!pdfChunks.length) throw new Error('No readable text found in PDF.');
+
+        setStatus('dot green', `✓ "${file.name}" — ${pdfChunks.length} chunks indexed in ${taken}ms`);
+        document.getElementById('askBtn').disabled = false;
+        addMsg('sys', `📚 "${file.name}" ready (${pdfChunks.length} chunks). Ask me anything!`);
+        console.log(`[PDF] Extracted ${pdfChunks.length} chunks from "${file.name}" in ${taken}ms`);
+      } catch (err) {
+        setStatus('dot', `❌ ${err.message}`);
+        addMsg('sys', `❌ ${err.message}`);
+        console.error('[PDF] Error:', err);
+      }
+    }
+
+    function setStatus(dotClass, text) {
+      document.getElementById('statusDot').className = dotClass;
+      document.getElementById('statusText').textContent = text;
+    }
+
+    /* ────────────────────────────────────────────────
+     * RETRIEVAL — simple keyword scoring (works offline)
+     * ──────────────────────────────────────────────── */
+    function retrieveContext(question, chunks, topK = TOP_K_CHUNKS) {
+      const qWords = new Set(question.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/));
+      const scored = chunks.map(chunk => {
+        const cWords = new Set(chunk.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/));
+        const score = [...qWords].filter(w => cWords.has(w)).length;
+        return { score, chunk };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      const top = scored.slice(0, topK).filter(x => x.score > 0).map(x => x.chunk);
+      return top.length ? top.join('\n\n') : chunks.slice(0, topK).join('\n\n');
+    }
+
+    /* ────────────────────────────────────────────────
+     * SCALEDOWN API — browser fetch (with CORS handling)
+     * ──────────────────────────────────────────────── */
+    function estimateTokens(text) { return Math.max(1, Math.round(text.length / 4)); }
+
+    /**
+     * get_compressed_context(rawText, question)
+     * ─────────────────────────────────
+     * Performs a real POST to Scaledown AI. Sends both context and question.
+     */
+    async function get_compressed_context(rawText, question) {
+      const originalTokens = estimateTokens(rawText);
+
+      /* ── Real Scaledown call ───────────────────────── */
+      console.log(`[SCALEDOWN] Sending ${originalTokens} tokens to ${SCALEDOWN_URL} …`);
+      const t0 = performance.now();
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        const apiKey = document.getElementById('apiKeyInput').value.trim();
+
+        if (!apiKey) {
+          throw new Error('Please enter your Scaledown API key to continue.');
+        }
+
+        // Use the correct header format for Scaledown AI
+        headers['x-api-key'] = apiKey;
+
+        const payload = {
+          context: rawText,
+          prompt: question,
+          model: "gpt-4o",
+          scaledown: {
+            rate: "auto"
+          }
+        };
+
+        const resp = await fetch(SCALEDOWN_URL, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload),
+        });
+        const latencyMs = +(performance.now() - t0).toFixed(1);
+
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(`HTTP ${resp.status}: ${JSON.stringify(errData)}`);
+        }
+
+        const data = await resp.json();
+        const compressed = (data.results && data.results.compressed_prompt)
+          || data.compressed || data.result || data.text || rawText;
+        const compTok = estimateTokens(compressed);
+        const ratio = +((1 - compTok / originalTokens) * 100).toFixed(1);
+
+        console.log(
+          `[SCALEDOWN] ✓ Latency ${latencyMs}ms | ` +
+          `Original: ${originalTokens} tok → Compressed: ${compTok} tok | Saved: ${ratio}%`
+        );
+        return { compressedText: compressed, originalTokens, compressedTokens: compTok, ratio, latencyMs, isMock: false };
+
+      } catch (err) {
+        const latencyMs = +(performance.now() - t0).toFixed(1);
+        console.warn(`[SCALEDOWN] ⚠ ${err.message}`);
+        throw new Error(`Scaledown API Error: ${err.message}`);
+      }
+    }
+
+    /* ────────────────────────────────────────────────
+     * GEMINI 2.5 LLM INTEGRATION
+     * ──────────────────────────────────────────────── */
+    async function callGeminiLLM(question, compressedContext) {
+      const geminiKey = document.getElementById('geminiKeyInput').value.trim();
+      if (!geminiKey) {
+        throw new Error('Please enter your Gemini API key to generate an answer.');
+      }
+
+      const t0 = performance.now();
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+
+      const prompt = `
+You are EduTutor, a helpful AI tutor for rural Indian school students.
+Use ONLY the following textbook context to answer the student's question clearly and simply.
+If the context doesn't contain the answer, say "I couldn't find the answer in the provided textbook section."
+
+CONTEXT:
+${compressedContext}
+
+QUESTION:
+${question}
+`;
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3 }
+          })
+        });
+
+        const latencyMs = +(performance.now() - t0).toFixed(1);
+
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(`Gemini API Error ${resp.status}: ${errData?.error?.message || 'Unknown error'}`);
+        }
+
+        const data = await resp.json();
+        const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No answer generated.';
+
+        return { answer, latencyMs };
+      } catch (err) {
+        throw new Error(`Gemini LLM Error: ${err.message}`);
+      }
+    }
+
+    /* ────────────────────────────────────────────────
+     * MAIN Q&A PIPELINE
+     * ──────────────────────────────────────────────── */
+    const questionInput = document.getElementById('questionInput');
+    questionInput.addEventListener('keydown', e => { if (e.key === 'Enter') askQuestion(); });
+
+    async function askQuestion() {
+      const q = questionInput.value.trim();
+      if (!q || !pdfChunks.length) return;
+
+      questionInput.value = '';
+      document.getElementById('askBtn').disabled = true;
+      addMsg('user', q);
+      const loadingId = 'ld-' + Date.now();
+      addMsg('bot', '<div class="typing-dots"><span></span><span></span><span></span></div>', loadingId);
+
+      try {
+        // Fast check first for API Keys
+        if (!document.getElementById('apiKeyInput').value.trim()) {
+          throw new Error('Please enter your Scaledown API key (🔑) in the settings box above.');
+        }
+        if (!document.getElementById('geminiKeyInput').value.trim()) {
+          throw new Error('Please enter your Gemini API key (✨) in the settings box above.');
+        }
+
+        /* Step 1 — Retrieve */
+        const t1 = performance.now();
+        const rawCtx = retrieveContext(q, pdfChunks);
+        const extractMs = +(performance.now() - t1).toFixed(1);
+        console.log(`[RETRIEVAL] ${estimateTokens(rawCtx)} tokens retrieved in ${extractMs}ms`);
+
+        /* Step 2 — Compress via Scaledown */
+        const compression = await get_compressed_context(rawCtx, q);
+
+        /* Step 3 — Gemini LLM */
+        const llmResult = await callGeminiLLM(q, compression.compressedText);
+        console.log(`[LLM] Answer generated by Gemini 2.5 in ${llmResult.latencyMs}ms`);
+
+        /* Step 4 — Metrics */
+        const stdRagTok = estimateTokens(pdfChunks.slice(0, TOP_K_CHUNKS).join('\n\n'));
+        const saved = compression.originalTokens - compression.compressedTokens;
+        const costRed = +((saved / compression.originalTokens) * 100).toFixed(1);
+        const totalMs = +(extractMs + compression.latencyMs + llmResult.latencyMs).toFixed(1);
+
+        console.log(
+          `[METRICS] Compression: ${compression.ratio}% | ` +
+          `Cost Reduction: ${costRed}% | Total Latency: ${totalMs}ms`
+        );
+
+        removeMsg(loadingId);
+        addMsg('bot', llmResult.answer);
+        updateDashboard({
+          originalTokens: compression.originalTokens,
+          compressedTokens: compression.compressedTokens,
+          tokensSaved: Math.max(0, stdRagTok - compression.compressedTokens),
+          ratio: compression.ratio,
+          costRed,
+          extractMs,
+          scaleMs: compression.latencyMs,
+          llmMs: llmResult.latencyMs,
+          totalMs,
+          isMock: compression.isMock,
+        });
+
+      } catch (err) {
+        removeMsg(loadingId);
+        addMsg('bot', `⚠️ ${err.message}`);
+        console.error('[ASK] Error:', err);
+      } finally {
+        document.getElementById('askBtn').disabled = false;
+        questionInput.focus();
+      }
+    }
+
+    /* ────────────────────────────────────────────────
+     * CHAT HELPERS
+     * ──────────────────────────────────────────────── */
+    function addMsg(cls, html, id) {
+      const box = document.getElementById('chatBox');
+      const div = document.createElement('div');
+      div.className = `msg ${cls}`;
+      div.innerHTML = html;
+      if (id) div.id = id;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+    function removeMsg(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    /* ────────────────────────────────────────────────
+     * DASHBOARD
+     * ──────────────────────────────────────────────── */
+    function updateDashboard(m) {
+      document.getElementById('dashboard').classList.add('visible');
+
+      const label = (m.isMock ? '⚠ Mock · ' : '') + pdfTitle;
+      document.getElementById('dashSub').textContent = label;
+
+      document.getElementById('ratioNum').textContent = m.ratio + '%';
+      document.getElementById('ratioDetail').textContent =
+        `Compressed ${m.originalTokens.toLocaleString()} tokens → ${m.compressedTokens.toLocaleString()} tokens using Scaledown AI`;
+      document.getElementById('progressFill').style.width = Math.min(100, m.ratio) + '%';
+
+      document.getElementById('mOrig').textContent = m.originalTokens.toLocaleString();
+      document.getElementById('mComp').textContent = m.compressedTokens.toLocaleString();
+      document.getElementById('mSaved').textContent = m.tokensSaved.toLocaleString();
+      document.getElementById('mCost').textContent = m.costRed + '%';
+
+      const total = m.totalMs || 1;
+      setLatency('lExtract', 'lvExtract', m.extractMs, total);
+      setLatency('lScale', 'lvScale', m.scaleMs, total, 'var(--accent2)');
+      setLatency('lLlm', 'lvLlm', m.llmMs, total, 'var(--accent3)');
+    }
+
+    function setLatency(barId, valId, ms, total, color) {
+      const bar = document.getElementById(barId);
+      const pct = total > 0 ? (ms / total * 100).toFixed(1) : 0;
+      bar.style.width = pct + '%';
+      if (color) bar.style.background = color;
+      document.getElementById(valId).textContent = ms + 'ms';
+    }
+  </script>
+</body>
+
+</html>
