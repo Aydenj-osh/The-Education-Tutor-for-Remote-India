@@ -8,7 +8,7 @@
  *     app keeps working offline (mock mode activates automatically).
  */
 
-const CACHE_NAME    = 'edututor-v1';
+const CACHE_NAME    = 'edututor-v2';
 const SCALEDOWN_URL = 'https://api.scaledown.xyz/compress/raw/';
 
 /* App-shell assets to pre-cache on install */
