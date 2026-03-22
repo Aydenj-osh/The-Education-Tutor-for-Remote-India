@@ -12,7 +12,7 @@ An offline-first, zero-config Progressive Web App (PWA) designed to provide AI-p
 
 ## 🚀 How to Run
 
-1. Simply open `index.html` in Chrome, Edge, or Safari.
+1. Simply open `index.html` in Chrome, Edge, or Safari. 
 2. Enter your **Scaledown API Key** (🔑) and **Gemini API Key** (✨) in the settings card.
 3. Drag and drop any textbook PDF from the `docs/` folder (e.g. `NCERT-Class-10-History.pdf`).
 4. Ask a question and watch the Context Pruning slash the token count instantly!
