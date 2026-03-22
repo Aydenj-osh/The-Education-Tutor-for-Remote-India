@@ -2,7 +2,7 @@
 
 An offline-first, zero-config Progressive Web App (PWA) designed to provide AI-powered tutoring to students in rural India using minimal bandwidth and API costs.
 
-## 🏆 Key Features & Constraints Met
+## 🏆 Key Features & Constraints Met 
 
 - **Zero-Config Architecture:** Runs entirely in the browser. No Python backend needed. Just open `index.html`.
 - **Offline PDF Extraction:** Extracts textbook text locally on the device using `pdf.js` without uploading massive files over weak 2G/3G networks.
